@@ -5,7 +5,7 @@ from flask_login import LoginManager, UserMixin, login_user, login_required, log
 
 # Initialisation de Flask
 app = Flask(__name__)
-app.secret_key = 'super_secret_key'
+app.secret_key = 'super_secret_key'  # Clé secrète pour la gestion des sessions
 
 # Initialisation de Flask-Login
 login_manager = LoginManager()
@@ -67,9 +67,13 @@ def ajouter():
         matiere = request.form['matiere']
         note = request.form['note']
         if nom and matiere and note:
-            ajouter_etudiant(nom, matiere, note)
-            flash(f"Étudiant {nom} ajouté avec succès.")
-            return redirect(url_for('index'))
+            try:
+                ajouter_etudiant(nom, matiere, note)
+                flash(f"Étudiant {nom} ajouté avec succès.")
+                return redirect(url_for('index'))
+            except Exception as e:
+                flash("Erreur lors de l'ajout de l'étudiant. Veuillez réessayer.")
+                return redirect(url_for('ajouter'))
         else:
             flash("Tous les champs sont obligatoires.")
     return render_template('ajouter_eleve.html')
@@ -98,9 +102,10 @@ def moyenne():
         moyenne = calculer_moyenne(nom)
         if moyenne is not None:
             flash(f"La moyenne de {nom} est {moyenne:.2f}.")
+            return redirect(url_for('index'))  # Redirection vers la page d'accueil après calcul
         else:
             flash(f"Aucune note trouvée pour {nom}.")
-        return redirect(url_for('index'))
+            return redirect(url_for('moyenne'))  # Redirection pour réessayer
     return render_template('moyenne.html')
 
 # Route pour la page de connexion
