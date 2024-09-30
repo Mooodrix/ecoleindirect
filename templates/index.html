@@ -5,7 +5,32 @@
     <title>Gestion des Étudiants</title>
 </head>
 <body>
-    <h1>Bienvenue dans l'application de gestion des étudiants</h1>
-    <p>Cliquez sur <a href="{{ url_for('ajouter') }}">Ajouter un étudiant</a> pour commencer.</p>
+    <h1>Liste des Étudiants</h1>
+    {% with messages = get_flashed_messages() %}
+        {% if messages %}
+            <ul>
+            {% for message in messages %}
+                <li>{{ message }}</li>
+            {% endfor %}
+            </ul>
+        {% endif %}
+    {% endwith %}
+    <table border="1">
+        <tr>
+            <th>Nom</th>
+            <th>Matière</th>
+            <th>Note</th>
+        </tr>
+        {% for etudiant in etudiants %}
+        <tr>
+            <td>{{ etudiant.Nom }}</td>
+            <td>{{ etudiant.Matière }}</td>
+            <td>{{ etudiant.Note }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+    <br>
+    <a href="{{ url_for('ajouter') }}">Ajouter un étudiant</a>
+    <a href="{{ url_for('moyenne') }}">Calculer la moyenne d'un étudiant</a>
 </body>
 </html>

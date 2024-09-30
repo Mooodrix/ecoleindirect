@@ -68,7 +68,7 @@ def ajouter():
             return redirect(url_for('index'))
         else:
             flash("Tous les champs sont obligatoires.")
-    return render_template('ajouter.html')
+    return render_template('ajouter_eleve.html')
 
 # Route pour calculer la moyenne d'un étudiant
 @app.route('/moyenne', methods=['GET', 'POST'])
