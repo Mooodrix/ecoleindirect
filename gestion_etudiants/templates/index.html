@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Gestion des Étudiants</title>
+</head>
+<body>
+    <h1>Liste des Étudiants</h1>
+    <a href="{{ url_for('ajouter') }}">Ajouter un étudiant</a> | 
+    <a href="{{ url_for('moyenne') }}">Calculer la moyenne</a>
+    <ul>
+    {% for etudiant in etudiants %}
+        <li>Étudiant: {{ etudiant['Nom'] }}, Matière: {{ etudiant['Matière'] }}, Note: {{ etudiant['Note'] }}</li>
+    {% endfor %}
+    </ul>
+    {% with messages = get_flashed_messages() %}
+      {% if messages %}
+        <ul>
+        {% for message in messages %}
+          <li>{{ message }}</li>
+        {% endfor %}
+        </ul>
+      {% endif %}
+    {% endwith %}
+</body>
+</html>
