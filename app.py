@@ -16,6 +16,7 @@ login_manager.login_view = 'login'
 FILENAME_ETUDIANTS = 'etudiants.csv'
 FILENAME_PROFESSEURS = 'professeurs.csv'
 FILENAME_UTILISATEURS = 'utilisateurs.csv'
+FILENAME_MATIERES = 'matieres.csv'
 
 # Fonction pour initialiser les fichiers
 def initialiser_fichiers():
@@ -204,6 +205,45 @@ def inscription():
         flash(f"Utilisateur {nom} créé avec succès.")
         return redirect(url_for('login'))
     return render_template('inscription.html')
+
+# Route pour ajouter une nouvelle matière
+@app.route('/ajouter_matiere', methods=['GET', 'POST'])
+@login_required  # Facultatif : Peut être activé pour restreindre l'accès aux utilisateurs connectés
+def ajouter_matiere():
+    if request.method == 'POST':
+        matiere = request.form['matiere']
+        if matiere:
+            try:
+                ajouter_matiere_au_csv(matiere)
+                flash(f"Matière '{matiere}' ajoutée avec succès.")
+                return redirect(url_for('ajouter_matiere'))
+            except Exception as e:
+                flash("Erreur lors de l'ajout de la matière. Veuillez réessayer.")
+        else:
+            flash("Le nom de la matière est obligatoire.")
+    
+    # Lire les matières existantes en dehors du `if`
+    matieres = lire_matieres()
+    return render_template('ajouter_matiere.html', matieres=matieres)
+
+
+# Fonction pour ajouter une matière au fichier CSV
+def ajouter_matiere_au_csv(matiere):
+    FILENAME_MATIERES = 'matieres.csv'
+    with open(FILENAME_MATIERES, mode='a', newline='') as file:
+        writer = csv.writer(file)
+        writer.writerow([matiere])
+
+# Fonction pour lire toutes les matières
+def lire_matieres():
+    matieres = []
+    if os.path.exists(FILENAME_MATIERES):
+        with open(FILENAME_MATIERES, mode='r') as file:
+            reader = csv.reader(file)
+            next(reader)  # Sauter l'en-tête
+            for row in reader:
+                matieres.append(row[0])  # Récupère uniquement le nom de la matière
+    return matieres
 
 # Initialisation des fichiers
 initialiser_fichiers()
