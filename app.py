@@ -53,10 +53,10 @@ def load_user(user_id):
     return None
 
 # Fonction pour ajouter un étudiant et sa note
-def ajouter_etudiant(nom, matiere, note):
+def ajouter_etudiant(nom):
     with open(FILENAME_ETUDIANTS, mode='a', newline='') as file:
         writer = csv.writer(file)
-        writer.writerow([nom, matiere, note])
+        writer.writerow([nom])
 
 # Fonction pour lire tous les étudiants
 def lire_etudiants():
@@ -66,7 +66,7 @@ def lire_etudiants():
             reader = csv.reader(file)
             next(reader)  # Sauter l'en-tête
             for row in reader:
-                etudiants.append({'Nom': row[0], 'Matière': row[1], 'Note': row[2]})
+                etudiants.append({'Nom': row[0]})
     return etudiants
 
 # Fonction pour ajouter un professeur
@@ -115,10 +115,8 @@ def index():
 def ajouter():
     if request.method == 'POST':
         nom = request.form['nom']
-        matiere = request.form['matiere']
-        note = request.form['note']
-        if nom and matiere and note:
-            ajouter_etudiant(nom, matiere, note)
+        if nom:
+            ajouter_etudiant(nom)
             flash(f"Étudiant {nom} ajouté avec succès.")
             return redirect(url_for('index'))
         else:
@@ -245,6 +243,99 @@ def lire_matieres():
                 matieres.append(row[0])  # Récupère uniquement le nom de la matière
     return matieres
 
+# Route pour ajouter une note
+@app.route('/ajouter_note', methods=['GET', 'POST'])
+@login_required  # Nécessite une connexion
+def ajouter_note():
+    etudiants = lire_etudiants()
+    matieres = lire_matieres()
+
+    if request.method == 'POST':
+        etudiant_nom = request.form['etudiant']
+        matiere = request.form['matiere']
+        note = request.form['note']
+
+        # Ajouter la note au fichier CSV
+        ajouter_note_csv(etudiant_nom, matiere, note)
+        flash(f"Note de {note} pour {etudiant_nom} en {matiere} ajoutée avec succès.")
+        return redirect(url_for('index'))
+
+    return render_template('ajouter_note.html', etudiants=etudiants, matieres=matieres)
+
+# Fonction pour ajouter une note au fichier CSV
+def ajouter_note_csv(nom_etudiant, matiere, note):
+    with open(FILENAME_ETUDIANTS, mode='a', newline='') as file:
+        writer = csv.writer(file)
+        writer.writerow([nom_etudiant, matiere, note])
+
+# Fonction pour lire les étudiants
+def lire_etudiants():
+    etudiants = []
+    if os.path.exists(FILENAME_ETUDIANTS):
+        with open(FILENAME_ETUDIANTS, mode='r') as file:
+            reader = csv.reader(file)
+            next(reader)  # Sauter l'en-tête
+            for row in reader:
+                etudiants.append({'Nom': row[0]})
+    return etudiants
+
+# Fonction pour lire les matières
+def lire_matieres():
+    matieres = []
+    if os.path.exists(FILENAME_MATIERES):
+        with open(FILENAME_MATIERES, mode='r') as file:
+            reader = csv.reader(file)
+            next(reader)  # Sauter l'en-tête
+            for row in reader:
+                matieres.append(row[0])
+    return matieres
+
+# Fonction pour ajouter une note à un étudiant
+def ajouter_note_etudiant(nom, matiere, note):
+    notes = []
+    if os.path.exists(FILENAME_ETUDIANTS):
+        with open(FILENAME_ETUDIANTS, mode='r') as file:
+            reader = csv.reader(file)
+            next(reader)  # Sauter l'en-tête
+            for row in reader:
+                if row[0] == nom:
+                    # Ajouter la nouvelle matière et note
+                    notes.append({'Matière': matiere, 'Note': note})
+    
+    # Écrire ou mettre à jour le fichier des notes
+    with open(FILENAME_ETUDIANTS, mode='a', newline='') as file:
+        writer = csv.writer(file)
+        for note in notes:
+            writer.writerow([nom, note['Matière'], note['Note']])
+
+# Fonction pour lire toutes les notes des étudiants
+def lire_notes_etudiants():
+    notes = {}
+    if os.path.exists(FILENAME_ETUDIANTS):
+        with open(FILENAME_ETUDIANTS, mode='r') as file:
+            reader = csv.reader(file)
+            next(reader)  # Sauter l'en-tête
+            for row in reader:
+                if len(row) == 3:  # Vérifier que la ligne a exactement 3 colonnes
+                    nom = row[0]
+                    matiere = row[1]
+                    note = row[2]
+                    if nom not in notes:
+                        notes[nom] = []
+                    notes[nom].append({'Matière': matiere, 'Note': note})
+                else:
+                    print(f"Ligne ignorée (nombre de colonnes invalide) : {row}")  # Message de débogage
+    return notes
+
+
+# Route pour lister les notes de tous les étudiants
+@app.route('/liste_notes')
+@login_required  # Nécessite une connexion
+def liste_notes():
+    notes = lire_notes_etudiants()
+    return render_template('liste_notes.html', notes=notes)
+
+            
 # Initialisation des fichiers
 initialiser_fichiers()
 
