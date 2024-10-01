@@ -5,7 +5,7 @@ from flask_login import LoginManager, UserMixin, login_user, login_required, log
 import datetime
 from flask import send_file
 import matplotlib.pyplot as plt
-import io
+import io       
 import base64
 from werkzeug.security import generate_password_hash
 
@@ -414,39 +414,6 @@ def telecharger_bulletin(nom):
         return redirect(url_for('liste_notes'))
     
 
-#---------- tableau pour graphique
-
-@app.route('/performances', methods=['GET'])
-@login_required
-def performances():
-    if current_user.role != 'etudiant':
-        return redirect(url_for('index'))  # Redirige si l'utilisateur n'est pas un étudiant
-
-    # Exemple de données. Remplacez cela par vos données réelles.
-    etudiant_nom = current_user.nom
-    # Simuler des moyennes pour 6 mois
-    mois = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin']
-    moyennes = [75, 80, 85, 78, 82, 90]  # Remplacez avec vos calculs réels
-
-    # Générer le graphique
-    plt.figure(figsize=(10, 5))
-    plt.plot(mois, moyennes, marker='o', linestyle='-', color='b')
-    plt.title(f'Évolution des Moyennes de {etudiant_nom}')
-    plt.xlabel('Mois')
-    plt.ylabel('Moyenne')
-    plt.grid()
-    
-    # Sauvegarder l'image dans un objet BytesIO
-    img = io.BytesIO()
-    plt.savefig(img, format='png')
-    img.seek(0)
-    
-    # Encoder l'image en base64
-    graphique = base64.b64encode(img.getvalue()).decode('utf8')
-    plt.close()  # Fermer la figure pour libérer de la mémoire
-
-    return render_template('performances.html', graphique=graphique)
-
    #Route pour afficher les notes d'un étudiant
 @app.route('/mes_notes', methods=['GET'])
 @login_required  # Requires user to be logged in
@@ -477,6 +444,42 @@ def logout():
     flash("Déconnexion réussie.")
     return redirect(url_for('index'))
 
+#------- graphique ! 
+@app.route('/performances', methods=['GET', 'POST'])
+@login_required
+def performances():
+    if current_user.role != 'etudiant':
+        return redirect(url_for('index'))  # Redirige si l'utilisateur n'est pas un étudiant
+
+    etudiant_nom = current_user.nom  # Nom de l'étudiant connecté
+    notes_par_matiere = {}
+
+    # Lire les notes de l'étudiant dans etudiants.csv
+    with open('etudiants.csv', newline='') as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            # Vérifier que la ligne est correcte (nom, matière, note)
+            if row.get('Nom') == etudiant_nom and row.get('Matière') and row.get('Note'):
+                matiere = row['Matière']
+                try:
+                    note = float(row['Note'])  # Convertir la note en float
+                    if matiere not in notes_par_matiere:
+                        notes_par_matiere[matiere] = []
+                    notes_par_matiere[matiere].append(note)  # Ajouter la note à la matière
+                except ValueError:
+                    # Si la note ne peut pas être convertie en nombre, on l'ignore
+                    continue
+
+    # Préparer les données pour l'affichage
+    etudiant_notes = []
+    for matiere, notes in notes_par_matiere.items():
+        etudiant_notes.append({
+            'Nom': etudiant_nom,
+            'Matière': matiere,
+            'Note': round(sum(notes) / len(notes), 2) if notes else 0  # Calculer la moyenne
+        })
+
+    return render_template('performances.html', etudiant_notes=etudiant_notes)
 
 
 # Initialisation des fichiers
