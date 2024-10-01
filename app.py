@@ -2,6 +2,11 @@ from flask import Flask, render_template, request, redirect, url_for, flash, ses
 import csv
 import os
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
+import datetime
+from flask import send_file
+import matplotlib.pyplot as plt
+import io
+import base64
 
 # Initialisation de Flask
 app = Flask(__name__)
@@ -167,14 +172,6 @@ def login():
             flash("Nom d'utilisateur ou mot de passe incorrect.")
     return render_template('login.html')
 
-# Route pour se déconnecter
-@app.route('/logout')
-@login_required
-def logout():
-    logout_user()
-    flash("Déconnexion réussie.")
-    return redirect(url_for('index'))
-
 # Fonction pour vérifier les informations de l'utilisateur
 def verifier_utilisateur(nom, mot_de_passe):
     if os.path.exists(FILENAME_UTILISATEURS):
@@ -319,13 +316,45 @@ def lire_notes_etudiants():
                 if len(row) == 3:  # Vérifier que la ligne a exactement 3 colonnes
                     nom = row[0]
                     matiere = row[1]
-                    note = row[2]
+                    note = float(row[2])
                     if nom not in notes:
-                        notes[nom] = []
-                    notes[nom].append({'Matière': matiere, 'Note': note})
-                else:
-                    print(f"Ligne ignorée (nombre de colonnes invalide) : {row}")  # Message de débogage
-    return notes
+                        notes[nom] = {'matières': {}, 'notes_total': 0, 'nombre_notes': 0}
+                    if matiere not in notes[nom]['matières']:
+                        notes[nom]['matières'][matiere] = {'notes': [], 'moyenne': 0}
+                    # Ajouter la note à la matière
+                    notes[nom]['matières'][matiere]['notes'].append(note)
+                    notes[nom]['notes_total'] += note
+                    notes[nom]['nombre_notes'] += 1
+
+    # Calculer les moyennes
+    for nom, data in notes.items():
+        # Calculer la moyenne générale
+        if data['nombre_notes'] > 0:
+            data['moyenne_generale'] = data['notes_total'] / data['nombre_notes']
+        # Calculer les moyennes par matière
+        for matiere, matiere_data in data['matières'].items():
+            if len(matiere_data['notes']) > 0:
+                matiere_data['moyenne'] = sum(matiere_data['notes']) / len(matiere_data['notes'])
+
+    # Reformatage des données pour le template
+    formatted_notes = []
+    for nom, data in notes.items():
+        etudiant_notes = []
+        for matiere, matiere_data in data['matières'].items():
+            etudiant_notes.append({
+                'matiere': matiere,
+                'notes': matiere_data['notes'],
+                'moyenne_matiere': matiere_data['moyenne']
+            })
+        formatted_notes.append({
+            'nom': nom,
+            'notes': etudiant_notes,
+            'moyenne_generale': data.get('moyenne_generale', 0)
+        })
+
+    return formatted_notes
+
+
 
 
 # Route pour lister les notes de tous les étudiants
@@ -335,7 +364,103 @@ def liste_notes():
     notes = lire_notes_etudiants()
     return render_template('liste_notes.html', notes=notes)
 
-            
+
+
+from flask import send_file  # Assurez-vous d'importer send_file au début de votre script
+
+# Route pour générer un bulletin et le télécharger
+@app.route('/telecharger_bulletin/<nom>', methods=['GET'])
+@login_required  # Nécessite une connexion
+def telecharger_bulletin(nom):
+    notes = lire_notes_etudiants()
+
+    # Trouver les notes de l'étudiant concerné
+    bulletin = None
+    for etudiant in notes:
+        if etudiant['nom'] == nom:
+            bulletin = etudiant
+            break
+
+    if bulletin:
+        # Création du contenu du bulletin
+        date = datetime.datetime.now().strftime("%Y-%m-%d")
+        contenu = f"Bulletin de {nom}\nDate: {date}\n\n"
+        contenu += "Matières et Notes:\n"
+        
+        for note in bulletin['notes']:
+            contenu += f"{note['matiere']}: {note['moyenne_matiere']:.2f}\n"
+        
+        contenu += f"\nMoyenne Générale: {bulletin['moyenne_generale']:.2f}\n"
+        
+        # Écriture du bulletin dans un fichier texte
+        nom_fichier = f"{nom}_bulletin.txt"
+        with open(nom_fichier, 'w') as fichier:
+            fichier.write(contenu)
+
+        # Utilisation de send_file pour envoyer le fichier au client
+        return send_file(nom_fichier, as_attachment=True)
+    else:
+        flash(f"Aucune note trouvée pour {nom}.")
+        return redirect(url_for('liste_notes'))
+    
+
+#---------- tableau pour graphique
+
+@app.route('/performances', methods=['GET'])
+@login_required
+def performances():
+    if current_user.role != 'etudiant':
+        return redirect(url_for('index'))  # Redirige si l'utilisateur n'est pas un étudiant
+
+    # Exemple de données. Remplacez cela par vos données réelles.
+    etudiant_nom = current_user.nom
+    # Simuler des moyennes pour 6 mois
+    mois = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin']
+    moyennes = [75, 80, 85, 78, 82, 90]  # Remplacez avec vos calculs réels
+
+    # Générer le graphique
+    plt.figure(figsize=(10, 5))
+    plt.plot(mois, moyennes, marker='o', linestyle='-', color='b')
+    plt.title(f'Évolution des Moyennes de {etudiant_nom}')
+    plt.xlabel('Mois')
+    plt.ylabel('Moyenne')
+    plt.grid()
+    
+    # Sauvegarder l'image dans un objet BytesIO
+    img = io.BytesIO()
+    plt.savefig(img, format='png')
+    img.seek(0)
+    
+    # Encoder l'image en base64
+    graphique = base64.b64encode(img.getvalue()).decode('utf8')
+    plt.close()  # Fermer la figure pour libérer de la mémoire
+
+    return render_template('performances.html', graphique=graphique)
+
+   #Route pour afficher les notes d'un étudiant
+@app.route('/mes_notes', methods=['GET'])
+@login_required
+def mes_notes():
+    if current_user.role != 'etudiant':
+        flash("Accès non autorisé.")
+        return redirect(url_for('index'))
+
+    # Récupérer les notes de l'étudiant connecté
+    notes = lire_etudiants()
+    etudiant_notes = [note for note in notes if note['Nom'] == current_user.nom]
+
+    return render_template('mes_notes.html', etudiant_notes=etudiant_notes)
+
+#Route pour se déconnecter
+@app.route('/logout', methods=['POST'])
+@login_required
+def logout():
+    logout_user()
+    flash("Déconnexion réussie.")
+    return redirect(url_for('index'))
+
+
+
 # Initialisation des fichiers
 initialiser_fichiers()
 

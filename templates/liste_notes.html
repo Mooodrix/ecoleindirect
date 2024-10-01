@@ -24,24 +24,24 @@
                 {% if current_user.is_authenticated %}
                     {% if current_user.role == 'professeur' %}
                     <li class="nav-item">
-                      <a class="nav-link" href="{{ url_for('ajouter') }}">Ajouter un étudiant</a>
+                        <a class="nav-link" href="{{ url_for('ajouter') }}">Ajouter un étudiant</a>
                     </li>
                     <li class="nav-item">
-                      <a class="nav-link" href="{{ url_for('moyenne') }}">Calculer la moyenne</a>
+                        <a class="nav-link" href="{{ url_for('moyenne') }}">Calculer la moyenne</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('ajouter_note') }}">ajouter note</a>
-                      </li>
-                      <li>
+                        <a class="nav-link" href="{{ url_for('ajouter_note') }}">Ajouter une note</a>
+                    </li>
+                    <li class="nav-item">
                         <a class="nav-link" href="{{ url_for('liste_notes') }}">Voir les Notes des Étudiants</a>
-                      </li>
+                    </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('ajouter_matiere') }}">Ajouter une Matière</a>
+                        <a class="nav-link" href="{{ url_for('ajouter_matiere') }}">Ajouter une matière</a>
                     </li> 
                     {% elif current_user.role == 'etudiant' %}
-                        <li class="nav-item">
-                            <a class="nav-link" href="{{ url_for('mes_notes') }}">Mes Notes</a>
-                        </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('mes_notes') }}">Mes Notes</a>
+                    </li>
                     {% endif %}
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
@@ -66,35 +66,46 @@
             </ul>
         </div>
     </div>
-  </nav>
+</nav>
 
 <!-- Section principale pour afficher la liste des notes -->
 <div class="container mt-5">
-    <h1>Liste des Notes des Étudiants</h1>
+    <h1 class="mb-4">Liste des Notes des Étudiants</h1>
+
     <table class="table table-striped">
         <thead>
             <tr>
                 <th>Nom de l'Étudiant</th>
                 <th>Matière</th>
-                <th>Note</th>
+                <th>Notes</th>
+                <th>Moyenne par Matière</th>
+                <th>Moyenne Générale</th>
+                <th>Actions</th>
             </tr>
         </thead>
         <tbody>
-            {% for etudiant, notes in notes.items() %}
+            {% for etudiant in notes %}
                 <tr>
-                    <td rowspan="{{ notes|length }}">{{ etudiant }}</td>
-                    <td>{{ notes[0].Matière }}</td>
-                    <td>{{ notes[0].Note }}</td>
+                    <td rowspan="{{ etudiant.notes|length }}">{{ etudiant.nom }}</td>
+                    <td>{{ etudiant.notes[0].matiere }}</td>
+                    <td>{{ etudiant.notes[0].notes|join(', ') }}</td>
+                    <td>{{ etudiant.notes[0].moyenne_matiere|round(2) }}</td>
+                    <td rowspan="{{ etudiant.notes|length }}">{{ etudiant.moyenne_generale|round(2) }}</td>
+                    <td rowspan="{{ etudiant.notes|length }}">
+                        <a href="{{ url_for('telecharger_bulletin', nom=etudiant.nom) }}" class="btn btn-success">Télécharger le Bulletin</a>
+                    </td>
                 </tr>
-                {% for note in notes[1:] %}
-                    <tr>
-                        <td>{{ note.Matière }}</td>
-                        <td>{{ note.Note }}</td>
-                    </tr>
+                {% for note in etudiant.notes[1:] %}
+                <tr>
+                    <td>{{ note.matiere }}</td>
+                    <td>{{ note.notes|join(', ') }}</td>
+                    <td>{{ note.moyenne_matiere|round(2) }}</td>
+                </tr>
                 {% endfor %}
             {% endfor %}
         </tbody>
     </table>
+
     <a href="{{ url_for('index') }}" class="btn btn-primary">Retour à l'Accueil</a>
 </div>
 

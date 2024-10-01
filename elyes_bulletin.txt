@@ -1,0 +1,8 @@
+Bulletin de elyes
+Date: 2024-10-01
+
+Matières et Notes:
+math: 12.00
+francais: 12.50
+
+Moyenne Générale: 12.33
