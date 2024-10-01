@@ -24,24 +24,27 @@
                 {% if current_user.is_authenticated %}
                     {% if current_user.role == 'professeur' %}
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('ajouter') }}">Ajouter un étudiant</a>
+                      <a class="nav-link" href="{{ url_for('ajouter') }}">Ajouter un étudiant</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('moyenne') }}">Calculer la moyenne</a>
+                      <a class="nav-link" href="{{ url_for('moyenne') }}">Calculer la moyenne</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('ajouter_note') }}">Ajouter une note</a>
-                    </li>
-                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('ajouter_note') }}">ajouter note</a>
+                      </li>
+                      <li>
                         <a class="nav-link" href="{{ url_for('liste_notes') }}">Voir les Notes des Étudiants</a>
-                    </li>
+                      </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('ajouter_matiere') }}">Ajouter une matière</a>
+                        <a class="nav-link" href="{{ url_for('ajouter_matiere') }}">Ajouter une Matière</a>
                     </li> 
                     {% elif current_user.role == 'etudiant' %}
-                    <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('mes_notes') }}">Mes Notes</a>
-                    </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ url_for('mes_notes') }}">Mes Notes</a>
+                        </li>
+                        <li class="nav-item">
+                          <a class="nav-link" href="{{ url_for('performances') }}">Mes Performances</a>
+                      </li>
                     {% endif %}
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
@@ -66,7 +69,7 @@
             </ul>
         </div>
     </div>
-</nav>
+  </nav>
 
 <!-- Section principale pour afficher la liste des notes -->
 <div class="container mt-5">
