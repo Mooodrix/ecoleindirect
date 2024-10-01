@@ -1,14 +1,13 @@
 from flask import Flask, render_template, request, redirect, url_for, flash, session
+from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
+from flask import send_file
+from werkzeug.security import generate_password_hash
 import csv
 import os
-from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
-import datetime
-from flask import send_file
-import matplotlib.pyplot as plt
 import io       
 import base64
-from werkzeug.security import generate_password_hash
-
+import datetime
+import matplotlib.pyplot as plt
 # Initialisation de Flask
 app = Flask(__name__)
 app.secret_key = 'super_secret_key'

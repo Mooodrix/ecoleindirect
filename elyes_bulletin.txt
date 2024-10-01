@@ -4,5 +4,6 @@ Date: 2024-10-01
 Matières et Notes:
 math: 12.00
 francais: 12.50
+anglais: 19.00
 
-Moyenne Générale: 12.33
+Moyenne Générale: 14.00
