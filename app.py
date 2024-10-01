@@ -2,6 +2,11 @@ from flask import Flask, render_template, request, redirect, url_for, flash, ses
 import csv
 import os
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
+import datetime
+from flask import send_file
+import matplotlib.pyplot as plt
+import io
+import base64
 
 # Initialisation de Flask
 app = Flask(__name__)
@@ -16,6 +21,7 @@ login_manager.login_view = 'login'
 FILENAME_ETUDIANTS = 'etudiants.csv'
 FILENAME_PROFESSEURS = 'professeurs.csv'
 FILENAME_UTILISATEURS = 'utilisateurs.csv'
+FILENAME_MATIERES = 'matieres.csv'
 
 # Fonction pour initialiser les fichiers
 def initialiser_fichiers():
@@ -52,10 +58,10 @@ def load_user(user_id):
     return None
 
 # Fonction pour ajouter un étudiant et sa note
-def ajouter_etudiant(nom, matiere, note):
+def ajouter_etudiant(nom):
     with open(FILENAME_ETUDIANTS, mode='a', newline='') as file:
         writer = csv.writer(file)
-        writer.writerow([nom, matiere, note])
+        writer.writerow([nom])
 
 # Fonction pour lire tous les étudiants
 def lire_etudiants():
@@ -65,7 +71,7 @@ def lire_etudiants():
             reader = csv.reader(file)
             next(reader)  # Sauter l'en-tête
             for row in reader:
-                etudiants.append({'Nom': row[0], 'Matière': row[1], 'Note': row[2]})
+                etudiants.append({'Nom': row[0]})
     return etudiants
 
 # Fonction pour ajouter un professeur
@@ -114,10 +120,8 @@ def index():
 def ajouter():
     if request.method == 'POST':
         nom = request.form['nom']
-        matiere = request.form['matiere']
-        note = request.form['note']
-        if nom and matiere and note:
-            ajouter_etudiant(nom, matiere, note)
+        if nom:
+            ajouter_etudiant(nom)
             flash(f"Étudiant {nom} ajouté avec succès.")
             return redirect(url_for('index'))
         else:
@@ -168,14 +172,6 @@ def login():
             flash("Nom d'utilisateur ou mot de passe incorrect.")
     return render_template('login.html')
 
-# Route pour se déconnecter
-@app.route('/logout')
-@login_required
-def logout():
-    logout_user()
-    flash("Déconnexion réussie.")
-    return redirect(url_for('index'))
-
 # Fonction pour vérifier les informations de l'utilisateur
 def verifier_utilisateur(nom, mot_de_passe):
     if os.path.exists(FILENAME_UTILISATEURS):
@@ -204,6 +200,266 @@ def inscription():
         flash(f"Utilisateur {nom} créé avec succès.")
         return redirect(url_for('login'))
     return render_template('inscription.html')
+
+# Route pour ajouter une nouvelle matière
+@app.route('/ajouter_matiere', methods=['GET', 'POST'])
+@login_required  # Facultatif : Peut être activé pour restreindre l'accès aux utilisateurs connectés
+def ajouter_matiere():
+    if request.method == 'POST':
+        matiere = request.form['matiere']
+        if matiere:
+            try:
+                ajouter_matiere_au_csv(matiere)
+                flash(f"Matière '{matiere}' ajoutée avec succès.")
+                return redirect(url_for('ajouter_matiere'))
+            except Exception as e:
+                flash("Erreur lors de l'ajout de la matière. Veuillez réessayer.")
+        else:
+            flash("Le nom de la matière est obligatoire.")
+    
+    # Lire les matières existantes en dehors du `if`
+    matieres = lire_matieres()
+    return render_template('ajouter_matiere.html', matieres=matieres)
+
+
+# Fonction pour ajouter une matière au fichier CSV
+def ajouter_matiere_au_csv(matiere):
+    FILENAME_MATIERES = 'matieres.csv'
+    with open(FILENAME_MATIERES, mode='a', newline='') as file:
+        writer = csv.writer(file)
+        writer.writerow([matiere])
+
+# Fonction pour lire toutes les matières
+def lire_matieres():
+    matieres = []
+    if os.path.exists(FILENAME_MATIERES):
+        with open(FILENAME_MATIERES, mode='r') as file:
+            reader = csv.reader(file)
+            next(reader)  # Sauter l'en-tête
+            for row in reader:
+                matieres.append(row[0])  # Récupère uniquement le nom de la matière
+    return matieres
+
+# Route pour ajouter une note
+@app.route('/ajouter_note', methods=['GET', 'POST'])
+@login_required  # Nécessite une connexion
+def ajouter_note():
+    etudiants = lire_etudiants()
+    matieres = lire_matieres()
+
+    if request.method == 'POST':
+        etudiant_nom = request.form['etudiant']
+        matiere = request.form['matiere']
+        note = request.form['note']
+
+        # Ajouter la note au fichier CSV
+        ajouter_note_csv(etudiant_nom, matiere, note)
+        flash(f"Note de {note} pour {etudiant_nom} en {matiere} ajoutée avec succès.")
+        return redirect(url_for('index'))
+
+    return render_template('ajouter_note.html', etudiants=etudiants, matieres=matieres)
+
+# Fonction pour ajouter une note au fichier CSV
+def ajouter_note_csv(nom_etudiant, matiere, note):
+    with open(FILENAME_ETUDIANTS, mode='a', newline='') as file:
+        writer = csv.writer(file)
+        writer.writerow([nom_etudiant, matiere, note])
+
+# Fonction pour lire les étudiants
+def lire_etudiants():
+    etudiants = []
+    if os.path.exists(FILENAME_ETUDIANTS):
+        with open(FILENAME_ETUDIANTS, mode='r') as file:
+            reader = csv.reader(file)
+            next(reader)  # Sauter l'en-tête
+            for row in reader:
+                etudiants.append({'Nom': row[0]})
+    return etudiants
+
+# Fonction pour lire les matières
+def lire_matieres():
+    matieres = []
+    if os.path.exists(FILENAME_MATIERES):
+        with open(FILENAME_MATIERES, mode='r') as file:
+            reader = csv.reader(file)
+            next(reader)  # Sauter l'en-tête
+            for row in reader:
+                matieres.append(row[0])
+    return matieres
+
+# Fonction pour ajouter une note à un étudiant
+def ajouter_note_etudiant(nom, matiere, note):
+    notes = []
+    if os.path.exists(FILENAME_ETUDIANTS):
+        with open(FILENAME_ETUDIANTS, mode='r') as file:
+            reader = csv.reader(file)
+            next(reader)  # Sauter l'en-tête
+            for row in reader:
+                if row[0] == nom:
+                    # Ajouter la nouvelle matière et note
+                    notes.append({'Matière': matiere, 'Note': note})
+    
+    # Écrire ou mettre à jour le fichier des notes
+    with open(FILENAME_ETUDIANTS, mode='a', newline='') as file:
+        writer = csv.writer(file)
+        for note in notes:
+            writer.writerow([nom, note['Matière'], note['Note']])
+
+# Fonction pour lire toutes les notes des étudiants
+def lire_notes_etudiants():
+    notes = {}
+    if os.path.exists(FILENAME_ETUDIANTS):
+        with open(FILENAME_ETUDIANTS, mode='r') as file:
+            reader = csv.reader(file)
+            next(reader)  # Sauter l'en-tête
+            for row in reader:
+                if len(row) == 3:  # Vérifier que la ligne a exactement 3 colonnes
+                    nom = row[0]
+                    matiere = row[1]
+                    note = float(row[2])
+                    if nom not in notes:
+                        notes[nom] = {'matières': {}, 'notes_total': 0, 'nombre_notes': 0}
+                    if matiere not in notes[nom]['matières']:
+                        notes[nom]['matières'][matiere] = {'notes': [], 'moyenne': 0}
+                    # Ajouter la note à la matière
+                    notes[nom]['matières'][matiere]['notes'].append(note)
+                    notes[nom]['notes_total'] += note
+                    notes[nom]['nombre_notes'] += 1
+
+    # Calculer les moyennes
+    for nom, data in notes.items():
+        # Calculer la moyenne générale
+        if data['nombre_notes'] > 0:
+            data['moyenne_generale'] = data['notes_total'] / data['nombre_notes']
+        # Calculer les moyennes par matière
+        for matiere, matiere_data in data['matières'].items():
+            if len(matiere_data['notes']) > 0:
+                matiere_data['moyenne'] = sum(matiere_data['notes']) / len(matiere_data['notes'])
+
+    # Reformatage des données pour le template
+    formatted_notes = []
+    for nom, data in notes.items():
+        etudiant_notes = []
+        for matiere, matiere_data in data['matières'].items():
+            etudiant_notes.append({
+                'matiere': matiere,
+                'notes': matiere_data['notes'],
+                'moyenne_matiere': matiere_data['moyenne']
+            })
+        formatted_notes.append({
+            'nom': nom,
+            'notes': etudiant_notes,
+            'moyenne_generale': data.get('moyenne_generale', 0)
+        })
+
+    return formatted_notes
+
+
+
+
+# Route pour lister les notes de tous les étudiants
+@app.route('/liste_notes')
+@login_required  # Nécessite une connexion
+def liste_notes():
+    notes = lire_notes_etudiants()
+    return render_template('liste_notes.html', notes=notes)
+
+
+
+from flask import send_file  # Assurez-vous d'importer send_file au début de votre script
+
+# Route pour générer un bulletin et le télécharger
+@app.route('/telecharger_bulletin/<nom>', methods=['GET'])
+@login_required  # Nécessite une connexion
+def telecharger_bulletin(nom):
+    notes = lire_notes_etudiants()
+
+    # Trouver les notes de l'étudiant concerné
+    bulletin = None
+    for etudiant in notes:
+        if etudiant['nom'] == nom:
+            bulletin = etudiant
+            break
+
+    if bulletin:
+        # Création du contenu du bulletin
+        date = datetime.datetime.now().strftime("%Y-%m-%d")
+        contenu = f"Bulletin de {nom}\nDate: {date}\n\n"
+        contenu += "Matières et Notes:\n"
+        
+        for note in bulletin['notes']:
+            contenu += f"{note['matiere']}: {note['moyenne_matiere']:.2f}\n"
+        
+        contenu += f"\nMoyenne Générale: {bulletin['moyenne_generale']:.2f}\n"
+        
+        # Écriture du bulletin dans un fichier texte
+        nom_fichier = f"{nom}_bulletin.txt"
+        with open(nom_fichier, 'w') as fichier:
+            fichier.write(contenu)
+
+        # Utilisation de send_file pour envoyer le fichier au client
+        return send_file(nom_fichier, as_attachment=True)
+    else:
+        flash(f"Aucune note trouvée pour {nom}.")
+        return redirect(url_for('liste_notes'))
+    
+
+#---------- tableau pour graphique
+
+@app.route('/performances', methods=['GET'])
+@login_required
+def performances():
+    if current_user.role != 'etudiant':
+        return redirect(url_for('index'))  # Redirige si l'utilisateur n'est pas un étudiant
+
+    # Exemple de données. Remplacez cela par vos données réelles.
+    etudiant_nom = current_user.nom
+    # Simuler des moyennes pour 6 mois
+    mois = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin']
+    moyennes = [75, 80, 85, 78, 82, 90]  # Remplacez avec vos calculs réels
+
+    # Générer le graphique
+    plt.figure(figsize=(10, 5))
+    plt.plot(mois, moyennes, marker='o', linestyle='-', color='b')
+    plt.title(f'Évolution des Moyennes de {etudiant_nom}')
+    plt.xlabel('Mois')
+    plt.ylabel('Moyenne')
+    plt.grid()
+    
+    # Sauvegarder l'image dans un objet BytesIO
+    img = io.BytesIO()
+    plt.savefig(img, format='png')
+    img.seek(0)
+    
+    # Encoder l'image en base64
+    graphique = base64.b64encode(img.getvalue()).decode('utf8')
+    plt.close()  # Fermer la figure pour libérer de la mémoire
+
+    return render_template('performances.html', graphique=graphique)
+
+   #Route pour afficher les notes d'un étudiant
+@app.route('/mes_notes', methods=['GET'])
+@login_required
+def mes_notes():
+    if current_user.role != 'etudiant':
+        flash("Accès non autorisé.")
+        return redirect(url_for('index'))
+
+    # Récupérer les notes de l'étudiant connecté
+    notes = lire_etudiants()
+    etudiant_notes = [note for note in notes if note['Nom'] == current_user.nom]
+
+    return render_template('mes_notes.html', etudiant_notes=etudiant_notes)
+
+#Route pour se déconnecter
+@app.route('/logout', methods=['POST'])
+@login_required
+def logout():
+    logout_user()
+    flash("Déconnexion réussie.")
+    return redirect(url_for('index'))
+
+
 
 # Initialisation des fichiers
 initialiser_fichiers()
