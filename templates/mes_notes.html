@@ -68,30 +68,31 @@
             </ul>
         </div>
     </div>
-  </nav>
-  <div class="container mt-5">
+</nav>
+
+<div class="container mt-5">
     <h3 class="text-center">Mes Notes</h3>
     <table class="table table-striped">
         <thead>
             <tr>
-                <th scope="col">Eleve</th>
+                <th scope="col">Élève</th>
                 <th scope="col">Matière</th>
                 <th scope="col">Note</th>
             </tr>
         </thead>
         <tbody>
             {% for note in etudiant_notes %}
-                <tr>
+                <tr class="{% if note['Note']|int < 10 %}table-danger{% endif %}">
                     <td>{{ note['Nom'] }}</td>
                     <td>{{ note['Matière'] }}</td>
                     <td>{{ note['Note'] }}</td>
                 </tr>
             {% else %}
                 <tr>
-                    <td colspan="2" class="text-center">Aucune note trouvée.</td>
+                    <td colspan="3" class="text-center">Aucune note trouvée.</td>
                 </tr>
             {% endfor %}
-        </tbody>
+        </tbody>        
     </table>
 </div>
 
