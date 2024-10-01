@@ -12,27 +12,71 @@
 <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
     <div class="container-fluid">
         <a class="navbar-brand" href="{{ url_for('index') }}">Ecole indirect</a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+            <span class="navbar-toggler-icon"></span>
+        </button>
         <div class="collapse navbar-collapse" id="navbarNav">
             <ul class="navbar-nav ms-auto">
                 <li class="nav-item">
                     <a class="nav-link" href="{{ url_for('index') }}">Accueil</a>
                 </li>
-                <li class="nav-item">
-                    <form action="{{ url_for('logout') }}" method="POST" style="display: inline;">
-                        <button type="submit" class="nav-link btn btn-link">Déconnexion</button>
-                    </form>
-                </li>
+                {% if current_user.is_authenticated %}
+                    {% if current_user.role == 'professeur' %}
+                    <li class="nav-item">
+                      <a class="nav-link" href="{{ url_for('ajouter') }}">Ajouter un étudiant</a>
+                    </li>
+                    <li class="nav-item">
+                      <a class="nav-link" href="{{ url_for('moyenne') }}">Calculer la moyenne</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('ajouter_note') }}">ajouter note</a>
+                      </li>
+                      <li>
+                        <a class="nav-link" href="{{ url_for('liste_notes') }}">Voir les Notes des Étudiants</a>
+                      </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('ajouter_matiere') }}">Ajouter une Matière</a>
+                    </li> 
+                    {% elif current_user.role == 'etudiant' %}
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ url_for('mes_notes') }}">Mes Notes</a>
+                        </li>
+                        <li class="nav-item">
+                          <a class="nav-link" href="{{ url_for('performances') }}">Mes Performances</a>
+                      </li>
+                    {% endif %}
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            Bonjour, {{ current_user.nom }}
+                        </a>
+                        <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="navbarDropdown">
+                            <li>
+                                <form action="{{ url_for('logout') }}" method="POST">
+                                    <button type="submit" class="dropdown-item">Déconnexion</button>
+                                </form>
+                            </li>
+                        </ul>
+                    </li>
+                {% else %}
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('login') }}">Connexion</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('inscription') }}">Inscription</a>
+                    </li>
+                {% endif %}
             </ul>
         </div>
     </div>
-</nav>
+  </nav>
 
 
-<div class="container mt-5">
+  <div class="container mt-5">
     <h3 class="text-center">Mes Notes</h3>
     <table class="table table-striped">
         <thead>
             <tr>
+                <th scope="col">Eleve</th>
                 <th scope="col">Matière</th>
                 <th scope="col">Note</th>
             </tr>
@@ -40,6 +84,7 @@
         <tbody>
             {% for note in etudiant_notes %}
                 <tr>
+                    <td>{{ note['Nom'] }}</td>
                     <td>{{ note['Matière'] }}</td>
                     <td>{{ note['Note'] }}</td>
                 </tr>

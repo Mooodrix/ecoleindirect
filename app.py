@@ -7,6 +7,7 @@ from flask import send_file
 import matplotlib.pyplot as plt
 import io
 import base64
+from werkzeug.security import generate_password_hash
 
 # Initialisation de Flask
 app = Flask(__name__)
@@ -28,16 +29,19 @@ def initialiser_fichiers():
     if not os.path.exists(FILENAME_ETUDIANTS):
         with open(FILENAME_ETUDIANTS, mode='w', newline='') as file:
             writer = csv.writer(file)
-            writer.writerow(['Nom', 'Matière', 'Note'])
+            writer.writerow(['Nom', 'Matiere', 'Note'])
     if not os.path.exists(FILENAME_PROFESSEURS):
         with open(FILENAME_PROFESSEURS, mode='w', newline='') as file:
             writer = csv.writer(file)
-            writer.writerow(['Nom', 'Matière'])
+            writer.writerow(['Nom', 'Matiere'])
     if not os.path.exists(FILENAME_UTILISATEURS):
         with open(FILENAME_UTILISATEURS, mode='w', newline='') as file:
             writer = csv.writer(file)
             writer.writerow(['Nom', 'Mot de passe', 'Role'])  # Role: 'etudiant' ou 'professeur'
-
+    if not os.path.exists(FILENAME_ETUDIANTS):
+        with open(FILENAME_ETUDIANTS, mode='w', newline='') as file:
+            writer = csv.writer(file)
+            writer.writerow(['Nom', 'Matiere', 'Note'])  # Role: 'etudiant' ou 'professeur'
 # Modèle d'utilisateur
 class User(UserMixin):
     def __init__(self, id, nom, role):
@@ -197,6 +201,11 @@ def inscription():
         mot_de_passe = request.form['mot_de_passe']
         role = request.form['role']  # 'etudiant' ou 'professeur'
         ajouter_utilisateur(nom, mot_de_passe, role)
+
+        # Ajouter à etudiants.csv si l'utilisateur est un étudiant
+        if role == 'etudiant':
+            ajouter_etudiant(nom)  # Ajouter l'étudiant
+
         flash(f"Utilisateur {nom} créé avec succès.")
         return redirect(url_for('login'))
     return render_template('inscription.html')
@@ -259,6 +268,7 @@ def ajouter_note():
 
     return render_template('ajouter_note.html', etudiants=etudiants, matieres=matieres)
 
+
 # Fonction pour ajouter une note au fichier CSV
 def ajouter_note_csv(nom_etudiant, matiere, note):
     with open(FILENAME_ETUDIANTS, mode='a', newline='') as file:
@@ -267,14 +277,14 @@ def ajouter_note_csv(nom_etudiant, matiere, note):
 
 # Fonction pour lire les étudiants
 def lire_etudiants():
-    etudiants = []
-    if os.path.exists(FILENAME_ETUDIANTS):
-        with open(FILENAME_ETUDIANTS, mode='r') as file:
-            reader = csv.reader(file)
-            next(reader)  # Sauter l'en-tête
-            for row in reader:
-                etudiants.append({'Nom': row[0]})
-    return etudiants
+    etudiants = set()  # Utiliser un set pour éliminer les doublons
+    with open('etudiants.csv', mode='r') as file:
+        reader = csv.DictReader(file)
+        for row in reader:
+            etudiants.add(row['Nom'])  # Ajouter seulement le nom à l'ensemble
+    return list(etudiants)  # Convertir l'ensemble en liste avant de retourner
+
+
 
 # Fonction pour lire les matières
 def lire_matieres():
@@ -439,15 +449,23 @@ def performances():
 
    #Route pour afficher les notes d'un étudiant
 @app.route('/mes_notes', methods=['GET'])
-@login_required
+@login_required  # Requires user to be logged in
 def mes_notes():
-    if current_user.role != 'etudiant':
-        flash("Accès non autorisé.")
-        return redirect(url_for('index'))
+    # Initialize an empty list for student notes
+    etudiant_notes = []
 
-    # Récupérer les notes de l'étudiant connecté
-    notes = lire_etudiants()
-    etudiant_notes = [note for note in notes if note['Nom'] == current_user.nom]
+    # Read the CSV file and filter notes for the current user
+    try:
+        with open('etudiants.csv', mode='r', encoding='utf-8') as file:
+            reader = csv.DictReader(file)
+            for row in reader:
+                # Assuming the column for the student name is "Nom"
+                if row['Nom'] == current_user.nom:  # Replace 'Nom' with the exact column name in your CSV
+                    etudiant_notes.append(row)
+    except FileNotFoundError:
+        flash('Le fichier etudiants.csv est introuvable.', 'danger')
+    except Exception as e:
+        flash(f'Une erreur est survenue : {str(e)}', 'danger')
 
     return render_template('mes_notes.html', etudiant_notes=etudiant_notes)
 

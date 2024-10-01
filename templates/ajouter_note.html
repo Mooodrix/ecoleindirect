@@ -30,11 +30,11 @@
                     <a class="nav-link" href="{{ url_for('moyenne') }}">Calculer la moyenne</a>
                   </li>
                   <li class="nav-item">
-                      <a class="nav-link" href="{{ url_for('ajouter_note') }}">ajouter note</a>
-                    </li>
-                    <li>
+                      <a class="nav-link" href="{{ url_for('ajouter_note') }}">Ajouter note</a>
+                  </li>
+                  <li>
                       <a class="nav-link" href="{{ url_for('liste_notes') }}">Voir les Notes des Étudiants</a>
-                    </li>
+                  </li>
                   <li class="nav-item">
                       <a class="nav-link" href="{{ url_for('ajouter_matiere') }}">Ajouter une Matière</a>
                   </li> 
@@ -81,16 +81,18 @@
                     <select class="form-select" id="etudiant" name="etudiant" required>
                         <option value="">Choisissez un étudiant</option>
                         {% for etudiant in etudiants %}
-                            <option value="{{ etudiant.Nom }}">{{ etudiant.Nom }}</option>
+                            <option value="{{ etudiant }}">{{ etudiant }}</option>  <!-- Affiche uniquement le nom -->
                         {% endfor %}
                     </select>
                 </div>
+                
+                
                 <div class="mb-3">
                     <label for="matiere" class="form-label">Sélectionnez une Matière</label>
                     <select class="form-select" id="matiere" name="matiere" required>
                         <option value="">Choisissez une matière</option>
                         {% for matiere in matieres %}
-                            <option value="{{ matiere }}">{{ matiere }}</option>
+                            <option value="{{ matière }}">{{ matiere }}</option>
                         {% endfor %}
                     </select>
                 </div>
