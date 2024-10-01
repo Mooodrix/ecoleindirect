@@ -1,13 +1,14 @@
 from flask import Flask, render_template, request, redirect, url_for, flash, session
+from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
+from flask import send_file
+from werkzeug.security import generate_password_hash
+from flask import send_file  # Assurez-vous d'importer send_file au début de votre script
 import csv
 import os
-from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
-import datetime
-from flask import send_file
 import matplotlib.pyplot as plt
 import io
 import base64
-from werkzeug.security import generate_password_hash
+import datetime
 
 # Initialisation de Flask
 app = Flask(__name__)
@@ -23,25 +24,34 @@ FILENAME_ETUDIANTS = 'etudiants.csv'
 FILENAME_PROFESSEURS = 'professeurs.csv'
 FILENAME_UTILISATEURS = 'utilisateurs.csv'
 FILENAME_MATIERES = 'matieres.csv'
+FILENAME_ABSENCES = 'absences.csv'
 
 # Fonction pour initialiser les fichiers
 def initialiser_fichiers():
+    # Initialiser le fichier des étudiants et leurs notes
     if not os.path.exists(FILENAME_ETUDIANTS):
         with open(FILENAME_ETUDIANTS, mode='w', newline='') as file:
             writer = csv.writer(file)
-            writer.writerow(['Nom', 'Matiere', 'Note'])
+            writer.writerow(['Nom', 'Matiere', 'Note'])  # Structure du fichier étudiants
+
+    # Initialiser le fichier des professeurs
     if not os.path.exists(FILENAME_PROFESSEURS):
         with open(FILENAME_PROFESSEURS, mode='w', newline='') as file:
             writer = csv.writer(file)
-            writer.writerow(['Nom', 'Matiere'])
+            writer.writerow(['Nom', 'Matiere'])  # Structure du fichier professeurs
+
+    # Initialiser le fichier des utilisateurs (pour connexion)
     if not os.path.exists(FILENAME_UTILISATEURS):
         with open(FILENAME_UTILISATEURS, mode='w', newline='') as file:
             writer = csv.writer(file)
-            writer.writerow(['Nom', 'Mot de passe', 'Role'])  # Role: 'etudiant' ou 'professeur'
-    if not os.path.exists(FILENAME_ETUDIANTS):
-        with open(FILENAME_ETUDIANTS, mode='w', newline='') as file:
+            writer.writerow(['Nom', 'Mot de passe', 'Role'])  # Rôles: 'etudiant' ou 'professeur'
+
+    # Initialiser le fichier des absences et retards
+    if not os.path.exists(FILENAME_ABSENCES):
+        with open(FILENAME_ABSENCES, mode='w', newline='') as file:
             writer = csv.writer(file)
-            writer.writerow(['Nom', 'Matiere', 'Note'])  # Role: 'etudiant' ou 'professeur'
+            writer.writerow(['Nom', 'Statut', 'Date'])  # Structure du fichier absences/retards
+
 # Modèle d'utilisateur
 class User(UserMixin):
     def __init__(self, id, nom, role):
@@ -230,7 +240,6 @@ def ajouter_matiere():
     matieres = lire_matieres()
     return render_template('ajouter_matiere.html', matieres=matieres)
 
-
 # Fonction pour ajouter une matière au fichier CSV
 def ajouter_matiere_au_csv(matiere):
     FILENAME_MATIERES = 'matieres.csv'
@@ -268,7 +277,6 @@ def ajouter_note():
 
     return render_template('ajouter_note.html', etudiants=etudiants, matieres=matieres)
 
-
 # Fonction pour ajouter une note au fichier CSV
 def ajouter_note_csv(nom_etudiant, matiere, note):
     with open(FILENAME_ETUDIANTS, mode='a', newline='') as file:
@@ -283,8 +291,6 @@ def lire_etudiants():
         for row in reader:
             etudiants.add(row['Nom'])  # Ajouter seulement le nom à l'ensemble
     return list(etudiants)  # Convertir l'ensemble en liste avant de retourner
-
-
 
 # Fonction pour lire les matières
 def lire_matieres():
@@ -364,19 +370,12 @@ def lire_notes_etudiants():
 
     return formatted_notes
 
-
-
-
 # Route pour lister les notes de tous les étudiants
 @app.route('/liste_notes')
 @login_required  # Nécessite une connexion
 def liste_notes():
     notes = lire_notes_etudiants()
     return render_template('liste_notes.html', notes=notes)
-
-
-
-from flask import send_file  # Assurez-vous d'importer send_file au début de votre script
 
 # Route pour générer un bulletin et le télécharger
 @app.route('/telecharger_bulletin/<nom>', methods=['GET'])
@@ -477,7 +476,67 @@ def logout():
     flash("Déconnexion réussie.")
     return redirect(url_for('index'))
 
+# Fonction pour ajouter une absence ou un retard dans le fichier
+def ajouter_absence_retard(nom, statut, date):
+    with open(FILENAME_ABSENCES, mode='a', newline='') as file:
+        writer = csv.writer(file)
+        writer.writerow([nom, statut, date])
 
+
+@app.route('/absences_retards', methods=['GET', 'POST'])
+def absences_retards():
+    absences = []
+    
+    # Si l'utilisateur soumet le formulaire (uniquement pour le professeur)
+    if request.method == 'POST' and current_user.role == 'professeur':
+        nom = request.form['etudiant']
+        statut = request.form['statut']
+        date = request.form['date']
+
+        # Vérification des doublons
+        existe_deja = False
+        if os.path.exists(FILENAME_ABSENCES):
+            with open(FILENAME_ABSENCES, mode='r') as file:
+                reader = csv.reader(file)
+                next(reader)  # Sauter l'en-tête
+                for row in reader:
+                    # Vérifier si l'étudiant et la date existent déjà
+                    if row[0] == nom and row[2] == date:
+                        existe_deja = True
+                        break
+        
+        # Si l'entrée n'existe pas, on l'ajoute
+        if not existe_deja:
+            with open(FILENAME_ABSENCES, mode='a', newline='') as file:
+                writer = csv.writer(file)
+                writer.writerow([nom, statut, date])
+        
+        return redirect(url_for('absences_retards'))
+
+    # Lecture des absences existantes pour les afficher
+    if os.path.exists(FILENAME_ABSENCES):
+        with open(FILENAME_ABSENCES, mode='r') as file:
+            reader = csv.reader(file)
+            next(reader)  # Sauter l'en-tête
+            for row in reader:
+                # Si l'utilisateur est un étudiant, on ne garde que ses absences
+                if current_user.role == 'etudiant':
+                    if row[0] == current_user.nom:
+                        absences.append({'nom': row[0], 'statut': row[1], 'date': row[2]})
+                else:
+                    # Si c'est un professeur, afficher toutes les absences
+                    absences.append({'nom': row[0], 'statut': row[1], 'date': row[2]})
+
+    # Récupérer la liste des étudiants pour le professeur
+    etudiants = set()  # Utiliser un ensemble pour éviter les doublons
+    if current_user.role == 'professeur':
+        with open('etudiants.csv', mode='r') as file:  # Assurez-vous que ce fichier contient la liste des étudiants
+            reader = csv.reader(file)
+            next(reader)  # Sauter l'en-tête
+            for row in reader:
+                etudiants.add(row[0])  # Ajouter le nom de l'étudiant dans un ensemble
+
+    return render_template('absences_retards.html', etudiants=list(etudiants), absences=absences)
 
 # Initialisation des fichiers
 initialiser_fichiers()
