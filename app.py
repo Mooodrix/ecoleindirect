@@ -457,6 +457,49 @@ def performances():
     return render_template('performances.html', etudiant_notes=etudiant_notes)
 
 
+
+
+
+
+# Fonction pour ajouter un utilisateur
+def ajouter_utilisateur(nom, mot_de_passe, role):
+    # Vérifier si l'utilisateur existe déjà dans le fichier
+    with open(FILENAME_UTILISATEURS, 'r', newline='') as fichier:
+        lecteur_csv = csv.reader(fichier)
+        for ligne in lecteur_csv:
+            if ligne and ligne[0] == nom:
+                print(f"Utilisateur {nom} existe déjà. Aucune action entreprise.")
+                return
+
+    # Ajout du nouvel utilisateur dans le fichier CSV
+    with open(FILENAME_UTILISATEURS, 'a', newline='') as fichier:
+        writer = csv.writer(fichier)
+        writer.writerow([nom, mot_de_passe, role])
+        print(f"Utilisateur {nom} ajouté avec succès au fichier CSV.")
+
+# Route pour ajouter un étudiant
+@app.route('/ajouter_user', methods=['GET', 'POST'])
+@login_required  # Nécessite une connexion
+def ajouter_user():
+    if request.method == 'POST':
+        nom = request.form['nom']
+        if nom:
+            # Étape 1 : Ajouter l'étudiant au système (supposons que cette fonction existe)
+            ajouter_etudiant(nom)  # Fonction existante qui gère l'ajout de l'étudiant
+
+            # Étape 2 : Ajouter l'utilisateur dans le CSV des utilisateurs avec le mot de passe par défaut 'mdp'
+            ajouter_utilisateur(nom, 'mdp', 'etudiant')
+
+            # Message de confirmation
+            flash(f"Étudiant {nom} ajouté avec succès et utilisateur créé avec le mot de passe par défaut 'mdp'.")
+            return redirect(url_for('index'))
+        else:
+            flash("Tous les champs sont obligatoires.")
+    return render_template('ajouter_eleve.html')
+
+
+
+
 # Initialisation des fichiers
 initialiser_fichiers()
 
