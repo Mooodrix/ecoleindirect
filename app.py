@@ -229,7 +229,6 @@ def ajouter_matiere():
     matieres = lire_matieres()
     return render_template('ajouter_matiere.html', matieres=matieres)
 
-
 # Fonction pour ajouter une matière au fichier CSV
 def ajouter_matiere_au_csv(matiere):
     FILENAME_MATIERES = 'matieres.csv'
@@ -358,38 +357,32 @@ def liste_notes():
 @login_required  # Nécessite une connexion
 def telecharger_bulletin(nom):
     notes = lire_notes_etudiants()
-
     # Trouver les notes de l'étudiant concerné
     bulletin = None
     for etudiant in notes:
         if etudiant['nom'] == nom:
             bulletin = etudiant
             break
-
     if bulletin:
         # Création du contenu du bulletin
         date = datetime.datetime.now().strftime("%Y-%m-%d")
         contenu = f"Bulletin de {nom}\nDate: {date}\n\n"
         contenu += "Matières et Notes:\n"
-        
         for note in bulletin['notes']:
             contenu += f"{note['matiere']}: {note['moyenne_matiere']:.2f}\n"
-        
         contenu += f"\nMoyenne Générale: {bulletin['moyenne_generale']:.2f}\n"
-        
         # Écriture du bulletin dans un fichier texte
         nom_fichier = f"{nom}_bulletin.txt"
         with open(nom_fichier, 'w') as fichier:
             fichier.write(contenu)
-
         # Utilisation de send_file pour envoyer le fichier au client
         return send_file(nom_fichier, as_attachment=True)
     else:
         flash(f"Aucune note trouvée pour {nom}.")
         return redirect(url_for('liste_notes'))
-    
 
    #Route pour afficher les notes d'un étudiant
+
 @app.route('/mes_notes', methods=['GET'])
 @login_required  # Requires user to be logged in
 def mes_notes():
@@ -455,7 +448,6 @@ def performances():
         })
 
     return render_template('performances.html', etudiant_notes=etudiant_notes)
-
 
 # Initialisation des fichiers
 initialiser_fichiers()
