@@ -2,6 +2,7 @@ from flask import Flask, render_template, request, redirect, url_for, flash, ses
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from flask import send_file
 from werkzeug.security import generate_password_hash
+from flask import send_file  # Assurez-vous d'importer send_file au début de votre script
 import csv
 import os
 import io       
@@ -37,11 +38,10 @@ def initialiser_fichiers():
         with open(FILENAME_UTILISATEURS, mode='w', newline='') as file:
             writer = csv.writer(file)
             writer.writerow(['Nom', 'Mot de passe', 'Role'])  # Role: 'etudiant' ou 'professeur'
-    if not os.path.exists(FILENAME_ETUDIANTS):
-        with open(FILENAME_ETUDIANTS, mode='w', newline='') as file:
+    if not os.path.exists(FILENAME_MATIERES):
+        with open(FILENAME_MATIERES, mode='w', newline='') as file:
             writer = csv.writer(file)
-            writer.writerow(['Nom', 'Matiere', 'Note'])  # Role: 'etudiant' ou 'professeur'
-# Modèle d'utilisateur
+            writer.writerow(['Nom'])  
 class User(UserMixin):
     def __init__(self, id, nom, role):
         self.id = id
@@ -219,7 +219,7 @@ def ajouter_matiere():
             try:
                 ajouter_matiere_au_csv(matiere)
                 flash(f"Matière '{matiere}' ajoutée avec succès.")
-                return redirect(url_for('ajouter_matiere'))
+                return redirect(url_for('liste_notes'))
             except Exception as e:
                 flash("Erreur lors de l'ajout de la matière. Veuillez réessayer.")
         else:
@@ -248,12 +248,11 @@ def lire_matieres():
                 matieres.append(row[0])  # Récupère uniquement le nom de la matière
     return matieres
 
-# Route pour ajouter une note
 @app.route('/ajouter_note', methods=['GET', 'POST'])
 @login_required  # Nécessite une connexion
 def ajouter_note():
-    etudiants = lire_etudiants()
-    matieres = lire_matieres()
+    etudiants = lire_etudiants()  # Fonction pour récupérer les étudiants
+    matieres = lire_matieres()  # Fonction pour récupérer les matières
 
     if request.method == 'POST':
         etudiant_nom = request.form['etudiant']
@@ -262,17 +261,21 @@ def ajouter_note():
 
         # Ajouter la note au fichier CSV
         ajouter_note_csv(etudiant_nom, matiere, note)
-        flash(f"Note de {note} pour {etudiant_nom} en {matiere} ajoutée avec succès.")
-        return redirect(url_for('index'))
+        return redirect(url_for('liste_notes'))
 
     return render_template('ajouter_note.html', etudiants=etudiants, matieres=matieres)
-
 
 # Fonction pour ajouter une note au fichier CSV
 def ajouter_note_csv(nom_etudiant, matiere, note):
     with open(FILENAME_ETUDIANTS, mode='a', newline='') as file:
         writer = csv.writer(file)
         writer.writerow([nom_etudiant, matiere, note])
+
+# Fonction pour ajouter une note à un étudiant
+def ajouter_note_etudiant(Nom, Matière, Note):
+    with open(FILENAME_ETUDIANTS, mode='a', newline='') as file:
+        writer = csv.writer(file)
+        writer.writerow([Nom, Matière, Note])
 
 # Fonction pour lire les étudiants
 def lire_etudiants():
@@ -282,8 +285,6 @@ def lire_etudiants():
         for row in reader:
             etudiants.add(row['Nom'])  # Ajouter seulement le nom à l'ensemble
     return list(etudiants)  # Convertir l'ensemble en liste avant de retourner
-
-
 
 # Fonction pour lire les matières
 def lire_matieres():
@@ -295,24 +296,6 @@ def lire_matieres():
             for row in reader:
                 matieres.append(row[0])
     return matieres
-
-# Fonction pour ajouter une note à un étudiant
-def ajouter_note_etudiant(nom, matiere, note):
-    notes = []
-    if os.path.exists(FILENAME_ETUDIANTS):
-        with open(FILENAME_ETUDIANTS, mode='r') as file:
-            reader = csv.reader(file)
-            next(reader)  # Sauter l'en-tête
-            for row in reader:
-                if row[0] == nom:
-                    # Ajouter la nouvelle matière et note
-                    notes.append({'Matière': matiere, 'Note': note})
-    
-    # Écrire ou mettre à jour le fichier des notes
-    with open(FILENAME_ETUDIANTS, mode='a', newline='') as file:
-        writer = csv.writer(file)
-        for note in notes:
-            writer.writerow([nom, note['Matière'], note['Note']])
 
 # Fonction pour lire toutes les notes des étudiants
 def lire_notes_etudiants():
@@ -363,19 +346,12 @@ def lire_notes_etudiants():
 
     return formatted_notes
 
-
-
-
 # Route pour lister les notes de tous les étudiants
 @app.route('/liste_notes')
 @login_required  # Nécessite une connexion
 def liste_notes():
     notes = lire_notes_etudiants()
     return render_template('liste_notes.html', notes=notes)
-
-
-
-from flask import send_file  # Assurez-vous d'importer send_file au début de votre script
 
 # Route pour générer un bulletin et le télécharger
 @app.route('/telecharger_bulletin/<nom>', methods=['GET'])
